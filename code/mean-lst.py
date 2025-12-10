@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import cartopy.mpl.ticker as cticker
+import geopandas as gpd
 
 
 # DEFINICION DE VARIABLES AUXILIARES
@@ -22,7 +24,7 @@ product_name = 'ABI-L2-LST2KMF'
 # Identificadores de fecha y hora
 year = 2025
 start_doy = 182     # Incluido
-end_doy = 212       # Incluido
+end_doy = 185       # Incluido 212
 hour = 9
 
 # Extension del area de estudio
@@ -228,8 +230,8 @@ if daily_grids:
     ax.set_extent(target_extent, crs=ccrs.PlateCarree())
     
     # Dibujar bordes
-    ax.add_feature(cfeature.BORDERS, linewidth=1, edgecolor='black')
-    ax.coastlines(resolution='10m', color='black', linewidth=0.5)
+    # ax.add_feature(cfeature.BORDERS, linewidth=1, edgecolor='black')
+    # ax.coastlines(resolution='10m', color='black', linewidth=0.5)
     
     # Graficar el mapa promedio
     im = ax.pcolormesh(
@@ -239,14 +241,28 @@ if daily_grids:
         vmin=-25, vmax=10
     )
     
+    basin_path = '/Users/pibonacic/Documents/GitHub/poza-fria/data/cuenca_salar_huasco_dga_2009'
+    gdf = gpd.read_file(basin_path)
+    gdf = gdf.to_crs(epsg=4326)
+    gdf.plot(
+        ax=ax,                     # Dibuja sobre el eje de Cartopy ('ax')
+        facecolor='none',          # Sin relleno (para ver la temperatura debajo)
+        edgecolor='black',         # Color de la línea de la cuenca
+        linewidth=0.8,             # Grosor de la línea
+        transform=ccrs.PlateCarree() # La referencia del Shapefile es Lat/Lon
+    )
+
+
     # Decoración
     plt.colorbar(im, label='LST Promedio Mensual (°C)', shrink=0.7)
     
     # Grilla
-    gl = ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False,
-                      linestyle='--', alpha=0.5)
+    gl = ax.gridlines(draw_labels=True, dms=False, x_inline=False, y_inline=False,
+                      linestyle='', alpha=0)
     gl.top_labels = False
     gl.right_labels = False
+    gl.xformatter = cticker.LongitudeFormatter()
+    gl.yformatter = cticker.LatitudeFormatter()
     
     plt.title(f'Mapa de Temperatura Media Mensual (Días {start_doy}-{end_doy})\nHora fija: {hour}:00 UTC')
     plt.show()
