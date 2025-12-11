@@ -13,6 +13,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.mpl.ticker as cticker
 import geopandas as gpd
+import rioxarray as rxr
 
 
 # DEFINICION DE VARIABLES AUXILIARES
@@ -24,11 +25,11 @@ product_name = 'ABI-L2-LST2KMF'
 # Identificadores de fecha y hora
 year = 2025
 start_doy = 182     # Incluido
-end_doy = 185       # Incluido 212
+end_doy = 183       # Incluido 212
 hour = 9
 
 # Extension del area de estudio
-target_extent = [-69.1, -68.6, -20.5, -19.85] # [Lon W, Lon E, Lat S, Lat N]
+target_extent = [-69.07, -68.62, -20.5, -19.85] # [Lon W, Lon E, Lat S, Lat N]
 
 
 
@@ -196,6 +197,8 @@ for doy in range(start_doy, end_doy + 1):
 print("\n--- Análisis Finalizado ---")
 
 # --- 4. VISUALIZACIÓN DE RESULTADOS ---
+# Creo que sería más conveniente que el procesamiento generara un tif por ejemplo, y
+# luego hacer un mapa a partir de ese archivo en otro script
 
 if daily_grids:
     print("\nCalculando el mapa promedio mensual...")
@@ -229,10 +232,6 @@ if daily_grids:
     # Establecer la extensión del mapa (el mismo target_extent definido al inicio)
     ax.set_extent(target_extent, crs=ccrs.PlateCarree())
     
-    # Dibujar bordes
-    # ax.add_feature(cfeature.BORDERS, linewidth=1, edgecolor='black')
-    # ax.coastlines(resolution='10m', color='black', linewidth=0.5)
-    
     # Graficar el mapa promedio
     im = ax.pcolormesh(
         x_mesh, y_mesh, mean_pixel_map,
@@ -241,20 +240,47 @@ if daily_grids:
         vmin=-25, vmax=10
     )
     
+    # Dibuja curvas de nivel
+    dem_path = '/Users/pibonacic/Documents/GitHub/poza-fria/data/SRTM_1ARC_Huasco-basin.tif'
+    dem_ds = rxr.open_rasterio(dem_path, masked=True)
+    elev = dem_ds.squeeze()
+    elev_4326 = elev.rio.reproject("EPSG:4326")
+    levels = np.arange(3800, 4400, 200)
+    elev_4326 = elev_4326.rename({'x': 'lon', 'y': 'lat'})
+
+    contours = ax.contour(
+        elev_4326.lon, elev_4326.lat, elev_4326,
+        transform=ccrs.PlateCarree(),
+        levels=levels,
+        colors='white',
+        linewidth=0.4,
+        alpha=0.3
+    )
+
+    # Dibuja shape
     basin_path = '/Users/pibonacic/Documents/GitHub/poza-fria/data/cuenca_salar_huasco_dga_2009'
-    gdf = gpd.read_file(basin_path)
-    gdf = gdf.to_crs(epsg=4326)
-    gdf.plot(
+    salar_path = '/Users/pibonacic/Documents/GitHub/poza-fria/data/salar_huasco'
+    basin = gpd.read_file(basin_path)
+    basin = basin.to_crs(epsg=4326)
+    basin.plot(
         ax=ax,                     # Dibuja sobre el eje de Cartopy ('ax')
         facecolor='none',          # Sin relleno (para ver la temperatura debajo)
         edgecolor='black',         # Color de la línea de la cuenca
         linewidth=0.8,             # Grosor de la línea
         transform=ccrs.PlateCarree() # La referencia del Shapefile es Lat/Lon
     )
-
+    # salar = gpd.read_file(salar_path)
+    # salar = salar.to_crs(epsg=4326)
+    # salar.plot(
+    #     ax=ax,                     # Dibuja sobre el eje de Cartopy ('ax')
+    #     facecolor='none',          # Sin relleno (para ver la temperatura debajo)
+    #     edgecolor='black',         # Color de la línea de la cuenca
+    #     linewidth=0.8,             # Grosor de la línea
+    #     transform=ccrs.PlateCarree() # La referencia del Shapefile es Lat/Lon
+    # )
 
     # Decoración
-    plt.colorbar(im, label='LST Promedio Mensual (°C)', shrink=0.7)
+    plt.colorbar(im, label='', shrink=0.7)
     
     # Grilla
     gl = ax.gridlines(draw_labels=True, dms=False, x_inline=False, y_inline=False,
@@ -264,7 +290,7 @@ if daily_grids:
     gl.xformatter = cticker.LongitudeFormatter()
     gl.yformatter = cticker.LatitudeFormatter()
     
-    plt.title(f'Mapa de Temperatura Media Mensual (Días {start_doy}-{end_doy})\nHora fija: {hour}:00 UTC')
+    plt.title(f'GOES-19 Mean LST (°C) at {hour}:00 UTC for July 2025')
     plt.show()
 
 else:
