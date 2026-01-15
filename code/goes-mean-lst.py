@@ -161,8 +161,8 @@ def process_daily_data(ds, x_slice, y_slice, year, doy):
     lst_clipped = ds['LST'].sel(x=x_slice, y=y_slice)       # banda con datos de temperatura superficial
     dqf_clipped = ds['DQF'].sel(x=x_slice, y=y_slice)       # banda con info de calidad de datos
 
-    # Filtra usando las quality flags REVISAR
-    ds_filtered = lst_clipped.where(dqf_clipped == 0)       # DQF == 0 indica la mejor calidad REVISAR
+    # Filtra usando las quality flags
+    ds_filtered = lst_clipped.where(dqf_clipped == 0)       # DQF == 0 indica la mejor calidad
 
     # Asigna una dimension temporal a la matriz
     current_time = pd.to_datetime(f'{year}-{doy}', format='%Y-%j')
